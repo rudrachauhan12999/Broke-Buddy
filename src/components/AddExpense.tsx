@@ -43,28 +43,34 @@ const AddExpense: React.FC<AddExpenseProps> = ({ onAdd }) => {
       </h2>
 
       {/* Amount input */}
-      <div className="pixel-card text-center">
+      <div className="pixel-card text-center" style={{ background: 'linear-gradient(180deg, hsl(var(--card)), hsl(var(--pixel-cream)))' }}>
         <span className="font-pixel text-[10px] text-muted-foreground block mb-2">AMOUNT (₹)</span>
         <input
           type="number"
           value={amount}
           onChange={e => setAmount(e.target.value)}
           placeholder="0"
-          className="bg-transparent font-retro text-4xl text-center text-foreground outline-none w-full"
+          className="bg-transparent font-retro text-5xl text-center text-foreground outline-none w-full focus:text-primary transition-colors"
         />
+        {amount && Number(amount) > 0 && (
+          <p className="font-retro text-base text-muted-foreground mt-2 animate-fade-in">
+            That's {Math.floor(Number(amount) / 15)} chai ☕
+          </p>
+        )}
       </div>
 
       {/* Categories */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2.5">
         {categories.map((cat, i) => (
           <button
             key={cat.name}
             onClick={() => setSelectedCat(i)}
-            className={`pixel-card flex flex-col items-center gap-1 transition-all ${
-              i === selectedCat ? 'ring-2 ring-primary scale-105' : 'hover:scale-102'
+            className={`pixel-card flex flex-col items-center gap-1.5 transition-all active:scale-90 ${
+              i === selectedCat ? 'ring-2 ring-primary scale-105' : 'hover:scale-102 opacity-70 hover:opacity-100'
             }`}
+            style={{ transform: `rotate(${(i % 2 === 0 ? 0.8 : -0.8)}deg)` }}
           >
-            <span className="text-2xl">{cat.icon}</span>
+            <span className={`text-2xl transition-transform ${i === selectedCat ? 'scale-125' : ''}`}>{cat.icon}</span>
             <span className="font-pixel text-[7px] text-foreground uppercase">{cat.name}</span>
           </button>
         ))}
@@ -73,9 +79,9 @@ const AddExpense: React.FC<AddExpenseProps> = ({ onAdd }) => {
       {/* Add button */}
       <button
         onClick={handleAdd}
-        className={`pixel-btn w-full text-sm ${added ? 'bg-accent text-accent-foreground' : 'bg-primary text-primary-foreground'}`}
+        className={`pixel-btn w-full text-sm active:scale-95 transition-all ${added ? 'bg-accent text-accent-foreground scale-105' : 'bg-primary text-primary-foreground'}`}
       >
-        {added ? '✓ Added!' : '+ Add Expense'}
+        {added ? '✓ Added! 🎉' : '+ Add Expense'}
       </button>
     </div>
   );
