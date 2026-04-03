@@ -9,6 +9,8 @@ import ProfileCard from '@/components/ProfileCard';
 import BalanceOverAlert from '@/components/BalanceOverAlert';
 import Onboarding from '@/components/Onboarding';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import {
   useProfile, useUpsertProfile,
   useCatPreferences, useUpdateCatSkin,
@@ -21,6 +23,12 @@ type CatSkin = 'white' | 'calico' | 'orange' | 'gray' | 'brown' | 'black';
 const Index = () => {
   const { user } = useAuth();
 
+  // Realtime subscriptions
+  useRealtimeSubscription('profiles', ['profile']);
+  useRealtimeSubscription('expenses', ['expenses']);
+  useRealtimeSubscription('cat_preferences', ['cat_preferences']);
+  useRealtimeSubscription('balances', ['balance']);
+
   // DB hooks
   const { data: dbProfile } = useProfile();
   const { data: dbCatPrefs } = useCatPreferences();
@@ -30,7 +38,7 @@ const Index = () => {
   const updateBalanceMut = useUpdateBalance();
   const addExpenseMut = useAddExpense();
 
-  // Local state (used as fallback when not authenticated, or as initial values)
+  // Local state
   const [screen, setScreen] = useState('dashboard');
   const [localBalance, setLocalBalance] = useState(7500);
   const [localCatSkin, setLocalCatSkin] = useState<CatSkin>('orange');
@@ -38,11 +46,11 @@ const Index = () => {
   const [username, setUsername] = useState('');
   const [onboarded, setOnboarded] = useState(false);
 
-  // Sync from DB when data arrives
+  // Sync from DB
   useEffect(() => {
     if (dbProfile) {
       setUsername(dbProfile.username);
-      setOnboarded(true);
+      if (dbProfile.username) setOnboarded(true);
     }
   }, [dbProfile]);
 
@@ -54,7 +62,6 @@ const Index = () => {
     if (dbBalance) setLocalBalance(dbBalance.current_balance);
   }, [dbBalance]);
 
-  // Derived balance
   const balance = dbBalance?.current_balance ?? localBalance;
   const catSkin = (dbCatPrefs?.skin as CatSkin) ?? localCatSkin;
 
@@ -83,11 +90,14 @@ const Index = () => {
     setOnboarded(true);
     if (user) {
       upsertProfile.mutate({ username: name });
-      // Initialize balance for the month
-      updateBalanceMut.mutate(7500);
+      updateBalanceMut.mutate(10000);
       updateCatSkinMut.mutate('orange');
     }
   }, [user, upsertProfile, updateBalanceMut, updateCatSkinMut]);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
 
   if (!onboarded) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
@@ -117,6 +127,14 @@ const Index = () => {
               level={5}
               xp={3054200}
             />
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="pixel-btn bg-destructive text-destructive-foreground w-full text-[8px] active:scale-95 transition-transform"
+              >
+                🚪 Logout
+              </button>
+            )}
           </div>
         );
       default:
