@@ -229,14 +229,6 @@ const PixelCat: React.FC<PixelCatProps> = ({ mood = 'happy', skin = 'white', onS
         )}
       </div>
 
-      {/* Face text below cat */}
-      <div className="font-pixel text-[10px] -mt-3 text-foreground select-none pointer-events-none" style={{ transform: `translateX(${pos.x}px)` }}>
-        {blinkFrame ? '− −' : face.eyes}
-      </div>
-      <div className="font-pixel text-[8px] -mt-0.5 text-primary select-none pointer-events-none" style={{ transform: `translateX(${pos.x}px)` }}>
-        {face.mouth}
-      </div>
-
       {/* Skin customizer */}
       {showCustomizer && (
         <div className="flex gap-2 mt-4">

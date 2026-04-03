@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import BottomNav from '@/components/BottomNav';
 import Dashboard from '@/components/Dashboard';
 import AddExpense from '@/components/AddExpense';
@@ -8,31 +8,95 @@ import MonthlyWrap from '@/components/MonthlyWrap';
 import ProfileCard from '@/components/ProfileCard';
 import BalanceOverAlert from '@/components/BalanceOverAlert';
 import Onboarding from '@/components/Onboarding';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  useProfile, useUpsertProfile,
+  useCatPreferences, useUpdateCatSkin,
+  useBalance, useUpdateBalance,
+  useAddExpense,
+} from '@/hooks/useBrokeBuddyData';
 
 type CatSkin = 'white' | 'calico' | 'orange' | 'gray' | 'brown' | 'black';
 
 const Index = () => {
+  const { user } = useAuth();
+
+  // DB hooks
+  const { data: dbProfile } = useProfile();
+  const { data: dbCatPrefs } = useCatPreferences();
+  const { data: dbBalance } = useBalance();
+  const upsertProfile = useUpsertProfile();
+  const updateCatSkinMut = useUpdateCatSkin();
+  const updateBalanceMut = useUpdateBalance();
+  const addExpenseMut = useAddExpense();
+
+  // Local state (used as fallback when not authenticated, or as initial values)
   const [screen, setScreen] = useState('dashboard');
-  const [balance, setBalance] = useState(7500);
-  const [catSkin, setCatSkin] = useState<CatSkin>('orange');
+  const [localBalance, setLocalBalance] = useState(7500);
+  const [localCatSkin, setLocalCatSkin] = useState<CatSkin>('orange');
   const [showBalanceOver, setShowBalanceOver] = useState(false);
   const [username, setUsername] = useState('');
   const [onboarded, setOnboarded] = useState(false);
 
-  const handleAddExpense = (expense: { amount: number }) => {
+  // Sync from DB when data arrives
+  useEffect(() => {
+    if (dbProfile) {
+      setUsername(dbProfile.username);
+      setOnboarded(true);
+    }
+  }, [dbProfile]);
+
+  useEffect(() => {
+    if (dbCatPrefs) setLocalCatSkin(dbCatPrefs.skin as CatSkin);
+  }, [dbCatPrefs]);
+
+  useEffect(() => {
+    if (dbBalance) setLocalBalance(dbBalance.current_balance);
+  }, [dbBalance]);
+
+  // Derived balance
+  const balance = dbBalance?.current_balance ?? localBalance;
+  const catSkin = (dbCatPrefs?.skin as CatSkin) ?? localCatSkin;
+
+  const handleCatSkinChange = useCallback((skin: CatSkin) => {
+    setLocalCatSkin(skin);
+    if (user) updateCatSkinMut.mutate(skin);
+  }, [user, updateCatSkinMut]);
+
+  const handleAddExpense = useCallback((expense: { amount: number; category?: string; icon?: string }) => {
     const newBalance = Math.max(0, balance - expense.amount);
-    setBalance(newBalance);
+    setLocalBalance(newBalance);
     if (newBalance === 0) setShowBalanceOver(true);
-  };
+
+    if (user) {
+      addExpenseMut.mutate({
+        category: expense.category ?? 'Other',
+        icon: expense.icon ?? '📦',
+        amount: expense.amount,
+      });
+      updateBalanceMut.mutate(newBalance);
+    }
+  }, [user, balance, addExpenseMut, updateBalanceMut]);
+
+  const handleOnboardingComplete = useCallback((name: string) => {
+    setUsername(name);
+    setOnboarded(true);
+    if (user) {
+      upsertProfile.mutate({ username: name });
+      // Initialize balance for the month
+      updateBalanceMut.mutate(7500);
+      updateCatSkinMut.mutate('orange');
+    }
+  }, [user, upsertProfile, updateBalanceMut, updateCatSkinMut]);
 
   if (!onboarded) {
-    return <Onboarding onComplete={(name) => { setUsername(name); setOnboarded(true); }} />;
+    return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
   const renderScreen = () => {
     switch (screen) {
       case 'dashboard':
-        return <Dashboard balance={balance} catSkin={catSkin} onCatSkinChange={setCatSkin} onTriggerBalanceOver={() => setShowBalanceOver(true)} />;
+        return <Dashboard balance={balance} catSkin={catSkin} onCatSkinChange={handleCatSkinChange} onTriggerBalanceOver={() => setShowBalanceOver(true)} />;
       case 'expense':
         return <AddExpense onAdd={handleAddExpense} />;
       case 'insights':
